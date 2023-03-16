@@ -11,12 +11,14 @@ from allauth.socialaccount.providers.fxa.provider import FirefoxAccountsProvider
 from allauth.socialaccount.providers.github.provider import GitHubProvider
 from allauth.socialaccount.providers.gitlab.provider import GitLabProvider
 from allauth.socialaccount.providers.google.provider import GoogleProvider
+from allauth.socialaccount.providers.keycloak.provider import KeycloakProvider
 
 
 FXA_PROVIDER_ID = FirefoxAccountsProvider.id
 GITHUB_PROVIDER_ID = GitHubProvider.id
 GITLAB_PROVIDER_ID = GitLabProvider.id
 GOOGLE_PROVIDER_ID = GoogleProvider.id
+KEYCLOAK_PROVIDER_ID = KeycloakProvider.id
 
 
 class Command(BaseCommand):
@@ -100,3 +102,18 @@ class Command(BaseCommand):
             )
 
             self.update_provider(google_data)
+
+
+        # Check if KEYCLOAK_* settings are configured
+        if (
+            settings.KEYCLOAK_CLIENT_ID is not None
+            and settings.KEYCLOAK_CLIENT_SECRET is not None
+        ):
+            keycloak_data = dict(
+                name="Keycloak",
+                provider=KEYCLOAK_PROVIDER_ID,
+                client_id=settings.KEYCLOAK_CLIENT_ID,
+                secret=settings.KEYCLOAK_CLIENT_SECRET
+            )
+
+            self.update_provider(keycloak_data)
