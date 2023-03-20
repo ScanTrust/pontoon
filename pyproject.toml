@@ -1,0 +1,67 @@
+[project]
+name = "Pontoon"
+version = "0.1.0"
+description = "Patched Pontoon for Scantrust"
+authors = [
+    { name = "Dave Hao", email = "22258990+haodave@users.noreply.github.com" },
+]
+dependencies = [
+    "APScheduler==3.9.1.post1",
+    "bleach==3.3.0",
+    "celery==5.2.6",
+    "compare-locales==9.0.1",
+    "dj-database-url==0.3.0",
+    "Django==3.2.15",
+    "django-ace==1.0.5",
+    "django-allauth==0.51.0",
+    "django-bmemcached==0.2.3",
+    "django-cors-headers==3.5.0",
+    "django-csp==3.7",
+    "django-dirtyfields==1.3.1",
+    "django-guardian==2.3.0",
+    "django-jinja==2.7.0",
+    "django-notifications-hq==1.6.0",
+    "django-pipeline==2.0.6",
+    "google-cloud-translate==3.8.4",
+    "graphene-django==2.13.0",
+    "gunicorn==19.9.0",
+    "jsonfield==3.1.0",
+    "jsonschema==2.6.0",
+    "lxml==4.9.1",
+    "markupsafe==2.0.1",
+    "mercurial==6.4.2",
+    "newrelic==6.2.0.156",
+    "parsimonious==0.10.0",
+    "polib==1.0.6",
+    "psycopg2==2.9.6",
+    "PyJWT==2.4.0",
+    "python-dateutil==2.8.1",
+    "python-dotenv==0.17.0",
+    "python-levenshtein==0.12.2",
+    "pytz==2022.1",
+    "raygun4py==4.3.0",
+    "sacrebleu==2.3.1",
+    "sacremoses==0.0.43",
+    "translate-toolkit==3.3.2",
+    "whitenoise==5.2.0",
+    "wsgi-sslify==1.0.1",
+    "silme @ https://github.com/mozilla/silme/archive/v0.11.2.zip"
+]
+requires-python = "==3.9.16"
+license = { text = "MIT" }
+
+[tool.pdm]
+
+[tool.pdm.dev-dependencies]
+dev = [
+    "django-debug-toolbar==3.2.1",
+    "django-extensions==3.0.9",
+    "django-sslserver==0.19",
+    "pip-tools==6.13.0",
+    "ipython>=8.12.0",
+    "ipython-nord-theme>=0.1.0",
+]
+
+[build-system]
+requires = ["pdm-pep517>=1.0.0"]
+build-backend = "pdm.pep517.api"
