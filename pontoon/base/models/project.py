@@ -9,6 +9,8 @@ from django.db.models import Prefetch
 from django.utils import timezone
 from django.utils.functional import cached_property
 
+from guardian.shortcuts import get_objects_for_user
+
 from pontoon.base import utils
 from pontoon.base.models.aggregated_stats import AggregatedStats
 from pontoon.base.models.changed_entity_locale import ChangedEntityLocale
@@ -39,7 +41,9 @@ class ProjectQuerySet(models.QuerySet):
         if user.is_superuser:
             return self
 
-        return self.filter(visibility=Project.Visibility.PUBLIC)
+        user_projects = get_objects_for_user(user, "base.view_project", accept_global_perms=False).distinct()
+
+        return (self.filter(visibility=Project.Visibility.PUBLIC).distinct() | user_projects).distinct()
 
     def available(self):
         """
