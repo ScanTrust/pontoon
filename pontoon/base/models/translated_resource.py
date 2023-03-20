@@ -148,12 +148,8 @@ class TranslatedResource(AggregatedStats):
     Resource representation for a specific locale.
     """
 
-    resource = models.ForeignKey(
-        Resource, models.CASCADE, related_name="translatedresources"
-    )
-    locale = models.ForeignKey(
-        Locale, models.CASCADE, related_name="translatedresources"
-    )
+    resource = models.ForeignKey(Resource, models.CASCADE, related_name="translatedresources")
+    locale = models.ForeignKey(Locale, models.CASCADE, related_name="translatedresources")
 
     #: Most recent translation approved or created for this translated
     #: resource.
@@ -183,10 +179,7 @@ class TranslatedResource(AggregatedStats):
         self.adjust_stats(*args, **kwargs)
         project.adjust_stats(*args, **kwargs)
 
-        if (
-            not project.system_project
-            and project.visibility == Project.Visibility.PUBLIC
-        ):
+        if not project.system_project and project.visibility == Project.Visibility.PUBLIC:
             locale.adjust_stats(*args, **kwargs)
 
         if project_locale:
