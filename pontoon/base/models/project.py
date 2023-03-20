@@ -1,6 +1,8 @@
 from os.path import join
 from typing import TYPE_CHECKING
 
+from guardian.shortcuts import get_objects_for_user
+
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import models
@@ -40,7 +42,13 @@ class ProjectQuerySet(models.QuerySet):
         if user.is_superuser:
             return self
 
-        return self.filter(visibility=Project.Visibility.PUBLIC)
+        user_projects = get_objects_for_user(
+            user, "base.view_project", accept_global_perms=False
+        ).distinct()
+
+        return (
+            self.filter(visibility=Project.Visibility.PUBLIC).distinct() | user_projects
+        ).distinct()
 
     def available(self):
         """

@@ -114,6 +114,7 @@ class TranslatedResource(models.Model):
             "unreviewed": self.unreviewed_strings,
         }
 
+
     def adjust_stats(
         self, before: dict[str, int], after: dict[str, int], tr_created: bool
     ):
@@ -130,7 +131,7 @@ class TranslatedResource(models.Model):
         self.strings_with_errors = (
             F("strings_with_errors") + after["errors"] - before["errors"]
         )
-        self.strings_with_warnings = (
+       self.strings_with_warnings = (
             F("strings_with_warnings") + after["warnings"] - before["warnings"]
         )
         self.unreviewed_strings = (

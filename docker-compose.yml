@@ -13,7 +13,7 @@ services:
     depends_on:
       - postgresql
     ports:
-      - '8000:8000'
+      - "8000:8000"
     volumes:
       - ./documentation:/app/documentation
       - ./pontoon:/app/pontoon
@@ -29,6 +29,8 @@ services:
       - POSTGRES_USER=pontoon
       - POSTGRES_PASSWORD=asdf
       - POSTGRES_DB=pontoon
+    ports:
+      - "5555:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
 
