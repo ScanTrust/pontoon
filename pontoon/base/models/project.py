@@ -1,6 +1,8 @@
 from os.path import join
 from typing import TYPE_CHECKING
 
+from guardian.shortcuts import get_objects_for_user
+
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import models
@@ -40,7 +42,13 @@ class ProjectQuerySet(models.QuerySet):
         if user.is_superuser:
             return self
 
-        return self.filter(visibility=Project.Visibility.PUBLIC)
+        user_projects = get_objects_for_user(
+            user, "base.view_project", accept_global_perms=False
+        ).distinct()
+
+        return (
+            self.filter(visibility=Project.Visibility.PUBLIC).distinct() | user_projects
+        ).distinct()
 
     def available(self):
         """
@@ -71,9 +79,7 @@ class ProjectQuerySet(models.QuerySet):
     def stats_data(self, locale=None) -> dict[int, dict[str, int]]:
         """Mapping of project `id` to dict with counts."""
         query = (
-            self
-            if locale is None
-            else self.filter(resources__translatedresources__locale=locale)
+            self if locale is None else self.filter(resources__translatedresources__locale=locale)
         )
         tr = "resources__translatedresources"
         data = query.annotate(
@@ -257,9 +263,7 @@ class Project(models.Model, AggregatedStats):
         return join(settings.MEDIA_ROOT, "projects", self.slug)
 
     def get_latest_activity(self):
-        return (
-            self.latest_translation.latest_activity if self.latest_translation else None
-        )
+        return self.latest_translation.latest_activity if self.latest_translation else None
 
     def resource_priority_map(self):
         """
@@ -273,10 +277,7 @@ class Project(models.Model, AggregatedStats):
 
         for item in resource_priority_qs:
             path = item["resources__path"]
-            if (
-                path in resource_priority
-                and resource_priority[path] >= item["priority"]
-            ):
+            if path in resource_priority and resource_priority[path] >= item["priority"]:
                 continue
             resource_priority[path] = item["priority"]
 
