@@ -31,3 +31,6 @@ coverage/
 .server-build
 docker/config/server.env
 docker/config/server.env-e
+
+# PDM
+.pdm-python
