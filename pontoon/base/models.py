@@ -1254,8 +1254,10 @@ class ProjectQuerySet(models.QuerySet):
         """
         if user.is_superuser:
             return self
+        
+        user_projects = get_objects_for_user(user, "base.view_project", accept_global_perms=False).distinct()
 
-        return self.filter(visibility=Project.Visibility.PUBLIC)
+        return (self.filter(visibility=Project.Visibility.PUBLIC).distinct() | user_projects).distinct()
 
     def available(self):
         """
@@ -3955,8 +3957,8 @@ class TranslatedResource(AggregatedStats):
         self.adjust_stats(*args, **kwargs)
         project.adjust_stats(*args, **kwargs)
 
-        if not project.system_project:
-            locale.adjust_stats(*args, **kwargs)
+        # if not project.system_project:
+        #     locale.adjust_stats(*args, **kwargs)
 
         if project_locale:
             project_locale.adjust_stats(*args, **kwargs)
