@@ -153,8 +153,8 @@ class TranslatedResource(AggregatedStats):
         self.adjust_stats(*args, **kwargs)
         project.adjust_stats(*args, **kwargs)
 
-        if not project.system_project:
-            locale.adjust_stats(*args, **kwargs)
+        # if not project.system_project:
+        #     locale.adjust_stats(*args, **kwargs)
 
         if project_locale:
             project_locale.adjust_stats(*args, **kwargs)
