@@ -11,6 +11,13 @@ It specializes in open source localization that is driven by the community and u
 
 # Local development
 
+Prerequisits:
+
+Python version: `3.9.*`
+Node version: `>v14`
+NPM version: `>v7`
+pyenv
+
 1. Set up local Git repo
 
 ```sh
@@ -25,6 +32,11 @@ git remote add upstream https://github.com/mozilla/pontoon
 
 ```sh
 pyenv install `pyenv local`
+
+# use python venv
+python -m venv venv
+pip install -r requirements.txt
+# Or use pdm
 pdm install
 ```
 
@@ -117,15 +129,19 @@ GIT_CONFIG="
 5. Run server locally
 
 ```sh
-python manage.py runserver
+# Use python venv
+source venv/bin/activate
+# OR using pdm
+$(pdm venv activate)
 
+python manage.py runserver
 ```
 
 6. Update from the upstream repo - mozilla/pontoon
 
 ```sh
 git fetch upstream
-git rebase -i upstream/master
+git rebase -i upstream master
 # After resolve the conflicts (if there is any), pick the commits in the rebase todo list, then
 # force push to the origin (force push permission required).
 git push -f origin master
@@ -188,6 +204,7 @@ docker push 715161504141.dkr.ecr.eu-west-1.amazonaws.com/pontoon:${image_hash}-$
       (locale) is not working. Need to set up an SMTP account.
 - [✓] Add per-project permissions for users
 - [✓] Integrate Keycloak auth
+- [✓] Fix unauthorized page showing Django debug page instead of login page.
 - [✓] Add project action for exporting project translations
 - [ ] Correlate Keycloak user groups with user groups in Pontoon
 
