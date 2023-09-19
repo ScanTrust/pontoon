@@ -141,7 +141,7 @@ python manage.py runserver
 
 ```sh
 git fetch upstream
-git rebase -i upstream master
+git rebase -i upstream/master
 # After resolve the conflicts (if there is any), pick the commits in the rebase todo list, then
 # force push to the origin (force push permission required).
 git push -f origin master
