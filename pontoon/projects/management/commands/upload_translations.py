@@ -100,9 +100,11 @@ class Command(BaseCommand):
                 if tr[locale.name] == "" or tr[locale.name] in UNTRANSLATED_MARKS:
                     continue
 
+                trans_string = tr[locale.name]
                 if trans_obj := entity.translation_set.filter(locale=locale, active=True).first():
-                    if trans_obj.string == tr[locale.name]:
+                    if trans_obj.string == trans_string:
                         continue
+                    trans_obj.string = trans_string
                     trans_obj.approved = True
                     trans_obj.approved_user = user
                     trans_obj.approved_date = timezone.now()
@@ -112,10 +114,11 @@ class Command(BaseCommand):
                     trans_obj.pretranslated = False
                     trans_obj.fuzzy = False
                     trans_obj.save()
+                    print(f'{entity.key} - ({locale.name}) - String updated: "{trans_string}"')
                 else:
                     # Create the translation
                     Translation(
-                        string=tr[locale.name],
+                        string=trans_string,
                         user=user,
                         locale=locale,
                         entity=entity,
@@ -129,3 +132,4 @@ class Command(BaseCommand):
                         pretranslated=False,
                         fuzzy=False,
                     ).save()
+                    print(f'{entity.key} - ({locale.name}) - String created: "{trans_string}"')
