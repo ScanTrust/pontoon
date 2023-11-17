@@ -52,16 +52,10 @@ And then execute below SQL command on the new database
 -- meant to be executed on the mandatory postgress database "postgres"
 CREATE DATABASE pontoon;
 
-<<<<<<< HEAD
-This software is licensed under the
-[New BSD License](https://creativecommons.org/licenses/BSD/). For more
-information, read [LICENSE](https://github.com/mozilla/pontoon/blob/HEAD/LICENSE).
-=======
 -- meant to be executed on the mandatory postgress database "postgres"
 CREATE USER "pontoon" WITH PASSWORD "asdf";
 CREATE ROLE "pontoon-all";
 GRANT "pontoon-all" TO "pontoon";
->>>>>>> 20631c0e (update README)
 
 -- meant to be executed on the postgress database "pontoon"
 DO $$
@@ -207,6 +201,7 @@ docker push 715161504141.dkr.ecr.eu-west-1.amazonaws.com/pontoon:${image_hash}-$
 - [✓] Fix unauthorized page showing Django debug page instead of login page.
 - [✓] Add project action for exporting project translations
 - [ ] Correlate Keycloak user groups with user groups in Pontoon
+- [✓] Export/import translations in project page
 
 # References
 

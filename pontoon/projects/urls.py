@@ -50,6 +50,18 @@ urlpatterns = [
                     views.project,
                     name="pontoon.projects.notifications",
                 ),
+                # download CSV
+                path(
+                    "export-csv/",
+                    views.export_csv,
+                    name="pontoon.projects.export_csv",
+                ),
+                # upload CSV
+                path(
+                    "import-csv/",
+                    views.import_csv,
+                    name="pontoon.projects.import_csv",
+                ),
                 # AJAX views
                 path(
                     "ajax/",
