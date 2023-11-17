@@ -14,11 +14,10 @@ It specializes in open source localization that is driven by the community and u
 
 # Local development
 
-Prerequisits:
+Prerequisites:
 
-Python version: `3.11.9`
-Node version: `v18.19.0`
-pyenv
+- pyenv
+- nvm
 
 1. Set up local Git repo
 
@@ -34,6 +33,8 @@ git remote add upstream https://github.com/mozilla/pontoon
 
 ```sh
 pyenv install `pyenv local`
+nvm install v22 --lts
+
 python -m venv venv
 pip install -r requirements/default.txt
 pip install -r requirements/dev.txt
@@ -42,34 +43,14 @@ pip install -r requirements/dev.txt
 3. Start up a postgres database container
 
 ```sh
-docker-compose up -d postgresql
+docker-compose up -d postgres
 ```
 
 And then execute below SQL command on the new database
 
 ```sql
--- meant to be executed on the mandatory postgress database "postgres"
-CREATE DATABASE pontoon;
-
--- meant to be executed on the mandatory postgress database "postgres"
-CREATE USER "pontoon" WITH PASSWORD "asdf";
-CREATE ROLE "pontoon-all";
-GRANT "pontoon-all" TO "pontoon";
-
--- meant to be executed on the postgress database "pontoon"
-DO $$
-DECLARE
-    tables CURSOR FOR
-        SELECT tablename
-        FROM pg_tables
-        WHERE tablename NOT LIKE 'pg_%' AND tablename NOT LIKE 'sql_%'
-        ORDER BY tablename;
-BEGIN
-    FOR table_record IN tables LOOP
-	EXECUTE format('ALTER TABLE %s OWNER TO "pontoon-all"',   table_record.tablename);
-        -- RAISE NOTICE 'Tablename: %', table_record.tablename;
-    END LOOP;
-END$$;
+CREATE USER pontoon WITH CREATEDB PASSWORD 'asdf';
+CREATE DATABASE pontoon WITH owner = 'pontoon';
 ```
 
 4. Create env file
@@ -123,6 +104,10 @@ GIT_CONFIG="
 
 ```sh
 source venv/bin/activate
+# Create admin user
+python manage.py createsuperuser
+# Add Keycloak as auth provider
+python manage.py update_auth_providers
 python manage.py runserver
 ```
 
@@ -139,15 +124,17 @@ git push -f origin master
 
 7. Build the image
 
-Copy below chunk to your terminal and hit enter.
+Run below command in terminal
 
 ```sh
-export image_hash=$(git rev-parse --short upstream/main) && \
-  export today=$(printf '%(%Y%m%d)T') && \
-  make build-translate && \
-  make build-tagadmin && \
-  docker build -f ./docker/Dockerfile --build-arg USER_ID=1000 --build-arg GROUP_ID=1000 \
-    -t 715161504141.dkr.ecr.eu-west-1.amazonaws.com/pontoon:${image_hash}-${today} .
+# bump the current version
+bumpversion patch
+
+# build the image
+nvm use v22 && \
+    make build-translate && \
+    docker build -f ./docker/Dockerfile --build-arg USER_ID=1000 --build-arg GROUP_ID=1000 \
+        -t 715161504141.dkr.ecr.eu-west-1.amazonaws.com/pontoon:$(make version) .
 ```
 
 8. Push the image to AWS ECR
@@ -158,7 +145,7 @@ aws ecr get-login-password | docker login -u AWS --password-stdin \
   715161504141.dkr.ecr.eu-west-1.amazonaws.com
 
 # Push the image
-docker push 715161504141.dkr.ecr.eu-west-1.amazonaws.com/pontoon:${image_hash}-${today}
+docker push 715161504141.dkr.ecr.eu-west-1.amazonaws.com/pontoon:$(make version)
 ```
 
 # Todos
@@ -197,6 +184,7 @@ docker push 715161504141.dkr.ecr.eu-west-1.amazonaws.com/pontoon:${image_hash}-$
 - [✓] Add project action for exporting project translations
 - [ ] Correlate Keycloak user groups with user groups in Pontoon
 - [✓] Export/import translations in project page
+- [✓] Add versioning using bumpversion
 
 # References
 
