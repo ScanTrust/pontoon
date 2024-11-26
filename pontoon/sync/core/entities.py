@@ -43,9 +43,7 @@ def sync_entities_from_repo(
             try:
                 translations = parse_translations(path)
             except ParseError as error:
-                log.error(
-                    f"[{project.slug}:{db_path}] Skipping resource with parse error: {error}"
-                )
+                log.error(f"[{project.slug}:{db_path}] Skipping resource with parse error: {error}")
                 translations = []
             except ValueError as error:
                 if str(error).startswith("Translation format"):
@@ -97,10 +95,7 @@ def remove_resources(
     if not checkout.removed:
         return set()
     removed_resources = project.resources.filter(
-        path__in={
-            get_db_path(paths, join(checkout.path, co_path))
-            for co_path in checkout.removed
-        }
+        path__in={get_db_path(paths, join(checkout.path, co_path)) for co_path in checkout.removed}
     )
     removed_db_paths = {res.path for res in removed_resources}
     if removed_db_paths:
@@ -119,9 +114,7 @@ def update_resources(
     updates: dict[str, list[VCSTranslation]],
     now: datetime,
 ) -> tuple[int, set[str]]:
-    changed_resources = (
-        list(project.resources.filter(path__in=updates.keys())) if updates else None
-    )
+    changed_resources = list(project.resources.filter(path__in=updates.keys())) if updates else None
     if not changed_resources:
         return 0, set()
     log.info(
@@ -299,9 +292,7 @@ def is_translated_resource(
     return True
 
 
-def entity_from_source(
-    resource: Resource, now: datetime, idx: int, tx: VCSTranslation
-) -> Entity:
+def entity_from_source(resource: Resource, now: datetime, idx: int, tx: VCSTranslation) -> Entity:
     comments = getattr(tx, "comments", None)
     group_comments = getattr(tx, "group_comments", None)
     resource_comments = getattr(tx, "resource_comments", None)
@@ -321,15 +312,13 @@ def entity_from_source(
     )
 
 
-def entity_update(
-    current: Entity, update_from: Entity, fields: list[str]
-) -> Optional[Entity]:
+def entity_update(current: Entity, update_from: Entity, fields: list[str]) -> Optional[Entity]:
     updated = False
     for field in fields:
-        value = getattr(update_from, field)
-        if getattr(current, field) != value:
-            setattr(current, field, value)
+        if getattr(current, field) != getattr(update_from, field):
+            setattr(current, field, getattr(update_from, field))
             updated = True
+
     return current if updated else None
 
 
