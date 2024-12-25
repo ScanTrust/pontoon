@@ -1,33 +1,37 @@
-FROM python:3.11.9-alpine AS server
+FROM python:3.11.9-bookworm AS server
 
 ARG USER_ID=1000
 ARG GROUP_ID=1000
 
+ENV DEBIAN_FRONTEND=noninteractive
+ENV HGPYTHON3=1
+
+# Python environment variables
 ENV PYTHONUNBUFFERED 1
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONPATH /app
 
-# Install required software
-RUN apk update \
-    && apk upgrade \
-    && apk add --no-cache \
-        # Build dependencies
-        build-base \
+# Install required software.
+RUN apt-get update \
+    && apt-get -y upgrade \
+    # Enable downloading packages over https
+    && apt-get install -y apt-transport-https \
+    # Add source for node.js
+    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_18.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
+    # Install software
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+        build-essential \
         libmemcached-dev \
-        postgresql15-dev \
-        postgresql15-client \
-        # Node.js
         nodejs \
-        npm \
-        # Required for building some Python packages
-        python3-dev \
-        gcc \
-        musl-dev \
-        libffi-dev \
-        bash
+        postgresql-client \
+        postgresql-server-dev-15 \
+    # Clean up what can be cleaned up.
+    && apt-get autoremove -y
 
 # Install uv (version should match the one used in Python GitHub workflows)
-COPY --from=ghcr.io/astral-sh/uv:0.5.7 /uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.5.7 /uv /bin/uv
 
 WORKDIR /app
 
@@ -36,8 +40,7 @@ COPY requirements/* /app/requirements/
 RUN uv pip install --system -r requirements/default.txt -r requirements/dev.txt -r requirements/test.txt -r requirements/lint.txt
 
 # Create the app user
-RUN addgroup -g ${GROUP_ID} pontoon && \
-    adduser -D -u ${USER_ID} -G pontoon pontoon
+RUN groupadd -r --gid=${GROUP_ID} pontoon && useradd --uid=${USER_ID} --no-log-init -r -m -g pontoon pontoon
 RUN chown -R pontoon:pontoon /app
 USER pontoon
 
