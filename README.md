@@ -124,6 +124,8 @@ GIT_CONFIG="
 
 ```sh
 source venv/bin/activate
+# Add Keycloak as auth provider
+python manage.py update_auth_providers
 python manage.py runserver
 ```
 
@@ -144,7 +146,7 @@ Run below command in terminal
 
 ```sh
 # bump the current version
-bumpversion patch
+bump2version patch
 
 # build the image
 nvm use v18 && \
