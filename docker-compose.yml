@@ -3,16 +3,17 @@
 # Note: Requires docker-compose 1.27+.
 services:
   server:
-    image: 715161504141.dkr.ecr.eu-west-1.amazonaws.com/pontoon:1.1.11
+    image: 715161504141.dkr.ecr.eu-west-1.amazonaws.com/pontoon:1.1.10
     env_file:
       - .env
+    extra_hosts:
+      - host.docker.internal:host-gateway
     ports:
       - '8000:8000'
     volumes:
       - ./pontoon:/app/pontoon
       - ./requirements:/app/requirements
       - ./translate:/app/translate
-      - ~/.ssh:/home/pontoon/.ssh
 
 # Persist database
 volumes:
