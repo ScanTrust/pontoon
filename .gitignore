@@ -1,4 +1,10 @@
-.*
+.env*
+.eslint*
+.flake8
+.idea
+.py*
+.vscode
+translate/.gitignore
 
 *-all.js
 *-min.css
@@ -35,3 +41,5 @@ docker/config/server.env-e
 
 # Cursor IDE
 .cursorignore
+
+npm-debug.log*
