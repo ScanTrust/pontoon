@@ -1,10 +1,11 @@
-FROM python:3.11.9-bookworm AS server
+FROM python:3.11-bookworm AS server
 
 ARG USER_ID=1000
 ARG GROUP_ID=1000
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV HGPYTHON3=1
+ENV SECRET_KEY=some_random_key
 
 # Python environment variables
 ENV PYTHONUNBUFFERED 1
@@ -36,22 +37,24 @@ COPY --from=ghcr.io/astral-sh/uv:0.5.7 /uv /bin/uv
 WORKDIR /app
 
 # Install Pontoon Python requirements
-COPY requirements/* /app/requirements/
+COPY requirements/* ./requirements/
 RUN uv pip install --system -r requirements/default.txt -r requirements/dev.txt -r requirements/test.txt -r requirements/lint.txt
 
 # Create the app user
 RUN groupadd -r --gid=${GROUP_ID} pontoon && useradd --uid=${USER_ID} --no-log-init -r -m -g pontoon pontoon
-RUN chown -R pontoon:pontoon /app
+RUN chown -R pontoon:pontoon ./
 USER pontoon
 
 # Install the server's Node.js requirements
-ENV YUGLIFY_BINARY /app/node_modules/.bin/yuglify
-ENV TERSER_BINARY /app/node_modules/.bin/terser
-COPY --chown=pontoon:pontoon pontoon/package.json .
+ENV YUGLIFY_BINARY ./node_modules/.bin/yuglify
+ENV TERSER_BINARY ./node_modules/.bin/terser
+COPY --chown=pontoon:pontoon pontoon/package.json ./
 RUN npm install
 
-COPY --chown=pontoon:pontoon ./docker/config/server.env .env
-COPY --chown=pontoon:pontoon . /app/
+COPY --chown=pontoon:pontoon . ./
+
+# This set database type to postgres. Add actual databse url for production.
+ENV DATABASE_URL=postgres://pontoon:asdf@postgresql:5432/pontoon
 
 RUN python manage.py collectstatic
 
