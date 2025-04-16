@@ -1,5 +1,4 @@
 import csv
-import json
 
 from io import StringIO
 from typing import Iterable
@@ -9,10 +8,27 @@ from django.db import connection, transaction
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 
+from pontoon.translations.utils import parse_db_string_to_json
+
 from pontoon.base.models import Project, Translation
 
 
 def generate_translation_stats_csv(project: Project, user: User) -> HttpResponse:
+    """
+    Stream all non-obsolete entities and their approved translations for the
+    given project as a CSV file.
+
+    Column layout: Resource | Translation Key | Translation Source String | <locale> …
+
+    Entity keys are stored as a PostgreSQL text array (ArrayField). They are
+    serialised to CSV as follows so that import can reconstruct them exactly:
+      - plain_json / webext: array elements joined with "."  (e.g. "section.key")
+      - all other formats:   array elements joined with \\x04 (ASCII Unit Separator),
+                             a character that does not appear in normal source strings
+
+    Only approved translations are exported; other states (unreviewed, rejected,
+    etc.) appear as an empty cell.
+    """
     project_locales = project.project_locale.all()
     pl_names = [pl.locale.name for pl in project_locales]
     response = HttpResponse(content_type="text/csv")
@@ -65,9 +81,9 @@ def generate_translation_stats_csv(project: Project, user: User) -> HttpResponse
     for row in rows:
         (resource_path, entity_key, entity_string, translations) = row
         if resource_path.endswith("json"):
-            entity_key = ".".join(json.loads(entity_key))
-        elif resource_path.endswith("xliff"):
-            entity_key = entity_key.split("\x04")[-1]
+            entity_key = ".".join(entity_key)
+        else:
+            entity_key = "\x04".join(entity_key)
 
         row_data = [resource_path, entity_key, entity_string]
 
@@ -86,6 +102,25 @@ def generate_translation_stats_csv(project: Project, user: User) -> HttpResponse
 
 
 def upload_translations(csv_file, project: Project, user: User):
+    """
+    Import translations from a CSV file produced by generate_translation_stats_csv.
+
+    Returns a JsonResponse with an error message (status 400) on any validation
+    failure, or None on success (the view then issues a redirect).
+
+    Rows are skipped — not rejected — when a locale cell is blank or contains
+    one of UNTRANSLATED_MARKS, or when the same translation string already
+    exists for that entity/locale pair.
+
+    Whether the created translation is approved depends on whether the uploading
+    user has translator rights for the project locale (via can_translate). If
+    they do, the new translation becomes active/approved and any existing active
+    translation is deactivated in the same atomic block.
+    """
+    # Status strings that appear in locale cells of the exported CSV when there
+    # is no approved translation (e.g. the cell held a review-status label from
+    # an earlier Pontoon export format). These rows carry no translateable content
+    # and must be skipped rather than saved as translation strings.
     UNTRANSLATED_MARKS = ["MISSING", "PRETRANSLATED", "REJECTED", "FUZZY", "UNREVIEWED"]
 
     csv_data = csv_file.read().decode("utf-8")
@@ -117,7 +152,10 @@ def upload_translations(csv_file, project: Project, user: User):
         if qs := project.resources.filter(path=tr["Resource"]):
             resource = qs.first()
         else:
-            return JsonResponse(data={"error": f"Resource not found: {tr['Resource']}"})
+            return JsonResponse(
+                data={"error": f"Resource not found: {tr['Resource']}"},
+                status=400,
+            )
 
         if (
             key := get_translation_key(
@@ -156,8 +194,11 @@ def upload_translations(csv_file, project: Project, user: User):
                 activate_new_translation = True
 
             # Create new translation for the entity
+            value, properties = parse_db_string_to_json(resource.format, tr_string)
             new_trans = Translation(
                 string=tr_string,
+                value=value,
+                properties=properties,
                 user=user,
                 locale=locale,
                 entity=entity,
@@ -189,11 +230,24 @@ def upload_translations(csv_file, project: Project, user: User):
                 new_trans.save()
 
 
-def get_translation_key(key: str, format: str) -> str | None:
+def get_translation_key(key: str, format: str) -> list | None:
+    """
+    Convert a CSV "Translation Key" cell back to the list that matches
+    Entity.key (an ArrayField) for database lookup.
+
+    The encoding mirrors how generate_translation_stats_csv serialises keys:
+      - plain_json / webext: dot-joined path → split on "."
+      - everything else:     \\x04-joined elements → split on "\\x04"
+
+    Returns None for unrecognised formats; the caller treats this as an
+    unsupported-format error rather than a lookup failure.
+    """
     match format:
-        case "json":
-            return str(key.split(".")).replace("'", '"')
-        case "po" | "xml":
-            return key
+        case "plain_json" | "webext":
+            return key.split(".")
+        case "gettext" | "android" | "dtd" | "properties" | "ini" | "fluent" | "xcode" | "xliff":
+            # \x04 (ASCII Unit Separator) is used as a delimiter because it
+            # never appears in source strings, making the split unambiguous.
+            return key.split("\x04")
         case _:
             return None

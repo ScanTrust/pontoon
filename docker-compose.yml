@@ -8,10 +8,12 @@ services:
       dockerfile: ./docker/Dockerfile
       target: server
     image: local/pontoon
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     env_file:
-      - docker/config/server.env
+      - .env
     depends_on:
-      - postgresql
+      - postgres
     ports:
       - "8000:8000"
     volumes:

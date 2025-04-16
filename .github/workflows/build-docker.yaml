@@ -22,11 +22,11 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: lts/hydrogen
+          node-version: lts/iron
           cache: "npm"
 
       - run: npm install
@@ -41,6 +41,7 @@ jobs:
       - name: Get current version
         run: |
           echo "image_ver=$(make version)" >> $GITHUB_ENV
+
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2

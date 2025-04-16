@@ -57,6 +57,12 @@ export async function updateLocale(locale: Locale, code: string) {
   const next = res as Omit<Locale, 'cldrPlurals'> & {
     cldrPlurals: string;
   };
+
+  if (!next.cldrPlurals) {
+    set({ ...locale, fetching: false, set });
+    throw new Error('Failed to load locale data. Please refresh the page.');
+  }
+
   const cldrPlurals = next.cldrPlurals
     .split(',')
     .map((i: string) => parseInt(i, 10));
