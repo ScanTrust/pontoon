@@ -57,6 +57,7 @@ export async function updateLocale(locale: Locale, code: string) {
   const next = res as Omit<Locale, 'cldrPlurals'> & {
     cldrPlurals: string;
   };
+
   const cldrPlurals = next.cldrPlurals
     .split(',')
     .map((i: string) => parseInt(i, 10));
