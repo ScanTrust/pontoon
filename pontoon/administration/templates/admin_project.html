@@ -163,6 +163,14 @@
                 {{ repo_form.source_repo }}{{ repo_form.source_repo.label }}
               </label>
             </section>
+            <section class="checkbox readonly-wrapper">
+              <label
+                for="id_repositories-0-readonly"
+                title="{{ repo_form.readonly.help_text|trim }}"
+              >
+                {{ repo_form.readonly }}{{ repo_form.readonly.label }}
+              </label>
+            </section>
             <section class="delete-wrapper">
               <div class="delete">
                 {{ repo_form.DELETE.label_tag(label_suffix='') }}
