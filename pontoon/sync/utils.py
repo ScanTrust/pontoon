@@ -1,7 +1,8 @@
 import logging
 
+from collections import defaultdict
 from collections.abc import Iterator
-from os.path import basename, exists, join, normpath, relpath
+from os.path import basename, commonpath, exists, join, normpath, relpath
 from tempfile import TemporaryDirectory
 
 from moz.l10n.resource import parse_resource, serialize_resource
@@ -44,34 +45,48 @@ def serialize_locale(
     # restrictions from an L10nConfigPaths config are still honored via the
     # locale_codes check below.
     paths.locales = [locale.code]
+    ref_root = normpath(paths.ref_root)
 
-    resources = Resource.objects.filter(project=project)
+    resource_qs = Resource.objects.filter(project=project)
     if resource_path is not None:
-        resources = resources.filter(path=resource_path)
+        resource_qs = resource_qs.filter(path=resource_path)
+    resources = list(resource_qs)
+
+    # Fetch all relevant translations in a single query and group them by
+    # resource, rather than querying once per resource (N+1).
+    translations_by_resource: dict[int, list[Translation]] = defaultdict(list)
+    for tx in (
+        Translation.objects.filter(
+            entity__obsolete=False,
+            entity__resource__in=resources,
+            locale=locale,
+            active=True,
+        )
+        .filter(
+            Q(approved=True)
+            | Q(pretranslated=True, warnings__isnull=True)
+            | Q(fuzzy=True)
+        )
+        .select_related("entity")
+    ):
+        translations_by_resource[tx.entity.resource_id].append(tx)
+
     for resource in resources:
         target, locale_codes = paths.target(resource.path)
         if target is None or locale.code not in locale_codes:
             continue
-        ref_path = normpath(join(paths.ref_root, resource.path))
+        ref_path = normpath(join(ref_root, resource.path))
         if ref_path.endswith(".po"):
             ref_path += "t"
+        # `resource.path` is unrestricted, so a leading "/" or ".." segments
+        # could escape the reference root and read arbitrary files; reject it.
+        if commonpath((ref_root, ref_path)) != ref_root:
+            log.error(f"[{project.slug}:{resource.path}] Invalid resource path")
+            continue
         if not exists(ref_path):
             log.error(f"[{project.slug}:{resource.path}] Missing source file")
             continue
-        translations = list(
-            Translation.objects.filter(
-                entity__obsolete=False,
-                entity__resource=resource,
-                locale=locale,
-                active=True,
-            )
-            .filter(
-                Q(approved=True)
-                | Q(pretranslated=True, warnings__isnull=True)
-                | Q(fuzzy=True)
-            )
-            .select_related("entity")
-        )
+        translations = translations_by_resource.get(resource.id, [])
         res = parse_resource(ref_path)
         set_translations(locale, translations, res)
         content = "".join(

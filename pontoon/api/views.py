@@ -1,3 +1,5 @@
+import logging
+
 from datetime import datetime, timedelta
 from io import BytesIO
 from os.path import basename
@@ -54,6 +56,9 @@ from .serializers import (
     TermSerializer,
     TranslationMemorySerializer,
 )
+
+
+log = logging.getLogger(__name__)
 
 
 class RequestFieldsMixin:
@@ -170,8 +175,11 @@ class ProjectLocaleTranslationsView(APIView):
         try:
             files = list(serialize_locale(project, locale, resource_path))
         except PullFromRepositoryException as error:
+            # Git stderr may contain sensitive details (e.g. a token-bearing
+            # URL from .gitconfig); keep it server-side, return a generic body.
+            log.error(f"[{slug}] Source checkout failed: {error}")
             return Response(
-                {"detail": f"Source repository unavailable: {error}"},
+                {"detail": "Source repository unavailable."},
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 

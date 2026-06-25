@@ -1,4 +1,5 @@
 from os import makedirs
+from os.path import join
 from tempfile import TemporaryDirectory
 from textwrap import dedent
 from unittest.mock import patch
@@ -146,3 +147,41 @@ def test_serialize_locale_no_translations():
         assert files["fr-Test/a.ftl"] == ""
         assert 'msgid "source"' in files["fr-Test/b.po"]
         assert 'msgstr ""' in files["fr-Test/b.po"]
+
+
+@pytest.mark.django_db
+def test_serialize_locale_rejects_path_traversal():
+    with (
+        TemporaryDirectory() as root,
+        patch(
+            "pontoon.sync.core.checkout.get_repo",
+            return_value=MockVersionControl(),
+        ),
+    ):
+        settings.MEDIA_ROOT = root
+        locale = LocaleFactory.create(code="fr-Test")
+        repo = RepositoryFactory(url="http://example.com/repo")
+        project = ProjectFactory.create(
+            name="test-traversal", locales=[locale], repositories=[repo]
+        )
+        res_ok = ResourceFactory.create(project=project, path="a.ftl", format="fluent")
+        TranslatedResourceFactory.create(locale=locale, resource=res_ok)
+
+        # A secret file outside the reference root, pointed at by a Resource
+        # whose (unrestricted) path escapes it.
+        secret = join(root, "secret.ftl")
+        with open(secret, "w", encoding="utf-8") as f:
+            f.write("leaked = TOP-SECRET\n")
+        res_evil = ResourceFactory.create(project=project, path=secret, format="fluent")
+        TranslatedResourceFactory.create(locale=locale, resource=res_evil)
+
+        makedirs(repo.checkout_path)
+        build_file_tree(
+            repo.checkout_path,
+            {"en-US": {"a.ftl": "key-0 = Message 0\n"}, "fr-Test": {"a.ftl": ""}},
+        )
+
+        files = dict(serialize_locale(project, locale))
+        # The escaping resource is skipped; its contents never leak.
+        assert all("TOP-SECRET" not in content for content in files.values())
+        assert all("secret.ftl" not in path for path in files)

@@ -894,6 +894,7 @@ def download_translations(request):
 
     project = get_object_or_404(Project.objects.visible_for(request.user), slug=slug)
     locale = get_object_or_404(Locale, code=code)
+    get_object_or_404(ProjectLocale, project=project, locale=locale)
 
     try:
         files = list(serialize_locale(project, locale, res_path))
