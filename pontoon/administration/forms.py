@@ -76,7 +76,7 @@ class RepositoryForm(forms.ModelForm):
 
     class Meta:
         model = Repository
-        fields = ("type", "url", "branch", "website", "source_repo")
+        fields = ("type", "url", "branch", "website", "source_repo", "readonly")
 
 
 RepositoryInlineFormSet = inlineformset_factory(
