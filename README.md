@@ -113,18 +113,74 @@ python manage.py runserver
 
 6. Update from the upstream repo - mozilla/pontoon
 
+**Merge upstream into `main` - do not rebase `main`, and do not force push it.**
+
+`main` is a shared, protected branch. Rebasing it rewrites commits that are
+already on `origin/main`, which leaves `git push -f` as the only way to publish
+the result. A force push to a shared branch silently deletes any teammate's
+commit pushed in the meantime, and forces everyone else to reset their clone.
+Merging keeps `origin/main` as an ancestor, so the push is an ordinary
+fast-forward and nothing can be lost.
+
 ```sh
+# 1. Start from a main that matches the remote exactly
 git fetch upstream
-git rebase -i upstream/main
-# After resolve the conflicts (if there is any), pick the commits in the rebase todo list, then
-# force push to the origin (force push permission required).
-git push -f origin master
-# Now you can branch out from here, add changes, commits, and open PR
+git switch main
+git pull --ff-only origin main
+
+# 2. Do the merge on a scratch branch, so a bad merge never touches main
+git switch -c merge/upstream-$(date +%Y%m%d)
+git merge upstream/main
 ```
+
+Resolve any conflicts, then **verify before publishing** - the merge is not
+done until these pass:
+
+```sh
+git grep -nE '^(<<<<<<<|>>>>>>>|=======)$'   # no leftover conflict markers
+ruff check pontoon/                          # no F821 undefined names
+python manage.py makemigrations --check --dry-run   # single migration leaf
+make build-translate                         # the frontend still builds
+make test-server                             # runs in docker compose; compare
+                                             # failures against the pre-merge
+                                             # baseline, not zero
+```
+
+Watch for two things git will *not* flag as conflicts: an import that both
+sides added (duplicated, not conflicted) and two migrations added independently
+on either side (different filenames, so no conflict - but two leaf nodes).
+
+```sh
+# 3. Fast-forward main onto the verified merge and push - no -f
+git switch main
+git merge --ff-only merge/upstream-$(date +%Y%m%d)
+
+# This must print nothing and exit 0. If it fails, history was rewritten
+# somewhere - stop and investigate rather than reaching for `git push -f`.
+git merge-base --is-ancestor origin/main main
+
+git push origin main
+```
+
+`main` requires changes to go through a pull request. Pushing directly works if
+you hold the bypass permission, but it skips review - prefer opening a PR from
+the merge branch and letting it merge normally.
+
+If `git push origin main` is ever rejected as non-fast-forward, someone else
+has pushed. Re-run step 1 and merge again; never resolve it with `-f`.
 
 7. Build the image
 
-Run below command in terminal
+Normally you do not need to do this by hand. Pushing a change to
+`.bumpversion.cfg` on `main` triggers `.github/workflows/build-docker.yaml`,
+which builds the image and pushes it to ECR tagged with `make version`. The
+workflow can also be run manually from the Actions tab with an explicit tag
+(`workflow_dispatch`).
+
+Note the workflow runs `make build-translate`, so a frontend build failure
+blocks the release even when the Python side is fine.
+
+To build locally anyway, run below command in terminal
 
 ```sh
 # bump the current version
