@@ -10,7 +10,7 @@ SITE_URL ?= http://localhost:8000
 USER_ID?=1000
 GROUP_ID?=1000
 
-.PHONY: build build-translate build-server server-env setup run clean shell ci test test-translate test-server vitest pytest format lint types eslint prettier check-prettier ruff check-ruff dropdb dumpdb loaddb sync-projects requirements docs
+.PHONY: build build-translate build-server server-env setup run clean shell ci test test-translate test-server vitest pytest format lint types eslint prettier check-prettier ruff check-ruff dropdb dumpdb loaddb sync-projects sync-upstream sync-upstream-verify sync-upstream-pr requirements docs
 
 help:
 	@echo "Welcome to Pontoon!\n"
@@ -40,6 +40,9 @@ help:
 	@echo "  dumpdb           Create a postgres database dump with timestamp used as file name"
 	@echo "  loaddb           Load a database dump into postgres, file name in DB_DUMP_FILE"
 	@echo "  sync-projects    Runs the synchronization task on all projects"
+	@echo "  sync-upstream    Merges mozilla/pontoon into the sync/upstream branch (never touches main)"
+	@echo "  sync-upstream-verify  Runs the post-merge checks on the working tree"
+	@echo "  sync-upstream-pr Pushes sync/upstream (no force) and opens a PR into main"
 	@echo "  requirements     Compiles all requirements files with uv pip compile"
 	@echo "  docs             Builds the documentation site\n"
 
@@ -158,6 +161,18 @@ loaddb:
 
 sync-projects:
 	"${DC}" run --rm server .//manage.py sync_projects $(opts)
+
+# Python for the sync-upstream checks; these run natively so CI needs no image.
+PYTHON ?= python
+# See README step 6. Merges upstream on a branch, never rebases or force pushes main.
+sync-upstream:
+	PYTHON=$(PYTHON) bin/sync-upstream.sh merge
+
+sync-upstream-verify:
+	PYTHON=$(PYTHON) bin/sync-upstream.sh verify
+
+sync-upstream-pr:
+	bin/sync-upstream.sh pr
 
 requirements:
 	# Pass --upgrade to upgrade all dependencies
