@@ -122,52 +122,82 @@ commit pushed in the meantime, and forces everyone else to reset their clone.
 Merging keeps `origin/main` as an ancestor, so the push is an ordinary
 fast-forward and nothing can be lost.
 
+**This runs automatically.** `.github/workflows/sync-upstream.yml` runs every
+Monday (and on demand from the Actions tab). It merges `upstream/main` into a
+`sync/upstream` branch cut from `main`, verifies the result, and opens a pull
+request. If the merge has conflicts it pushes nothing and lists the files in the
+job summary - finish it locally:
+
+```sh
+make sync-upstream          # fetch, merge onto sync/upstream, verify
+# on conflicts: fix the listed files, `git add` them, then
+make sync-upstream-verify
+git commit --no-edit        # the message already records the auto-resolutions
+make sync-upstream-pr       # plain push of sync/upstream + open the PR
+```
+
+`make sync-upstream` needs a clean working tree, and refuses to start if a
+`sync/upstream` branch already exists (finish or delete it first). Pass
+`PYTHON=venv/bin/python` if `python` is not your project interpreter.
+
+**Merge sync PRs with "Create a merge commit" only.** Squash or rebase merging
+drops `upstream/main` as a parent of `main`, so the next sync sees `main` as
+behind and re-merges the same commits, with the same conflicts, every week.
+
+If verification reports more than one leaf migration for an app, add a merge
+migration on the sync branch and commit it:
+`python manage.py makemigrations --merge <app>`.
+
+Some paths are resolved by fixed policy, and each one is listed in the merge
+commit and the PR so nothing is dropped silently:
+
+- `.github/` - always ours. ScanTrust runs only its own workflows.
+- `README.md` - always ours; it is ScanTrust content, not upstream's README.
+- `package-lock.json` - regenerated from the merged `package.json` files, when
+  those merged cleanly.
+
+The verification (`make sync-upstream-verify`) checks for unresolved conflicts
+and leftover markers, undefined names and duplicated imports (`ruff` F821 and
+F811), more than one leaf migration per app, and that `npm ci` plus the frontend
+build succeed. Two of these catch hazards git does *not* report as conflicts: an
+import both sides added, and migrations added independently on each side
+(different filenames, so no conflict - but two leaf nodes). It deliberately
+does not run the test suite; compare `make test-server` against the pre-merge
+baseline yourself before merging the PR.
+
+The workflow expects a repository secret `UPSTREAM_SYNC_TOKEN`: a token with
+Contents, Pull requests and Workflows write access. `GITHUB_TOKEN` has no
+Workflows permission, and upstream's history modifies `.github/workflows`, so a
+push made with it is likely to be refused. Without the secret the workflow falls
+back to `GITHUB_TOKEN`, which also requires allowing Actions to create pull
+requests (Settings > Actions > General).
+
+<details>
+<summary>What the make targets do, step by step</summary>
+
 ```sh
 # 1. Start from a main that matches the remote exactly
+git fetch origin
 git fetch upstream
-git switch main
-git pull --ff-only origin main
 
-# 2. Do the merge on a scratch branch, so a bad merge never touches main
-git switch -c merge/upstream-$(date +%Y%m%d)
-git merge upstream/main
+# 2. Merge on a branch, so a bad merge never touches main
+git switch -c sync/upstream origin/main
+git merge --no-ff upstream/main
 ```
 
-Resolve any conflicts, then **verify before publishing** - the merge is not
-done until these pass:
+Resolve conflicts, verify, then publish the branch - no `-f`:
 
 ```sh
-git grep -nE '^(<<<<<<<|>>>>>>>|=======)$'   # no leftover conflict markers
-ruff check pontoon/                          # no F821 undefined names
-python manage.py makemigrations --check --dry-run   # single migration leaf
-make build-translate                         # the frontend still builds
-make test-server                             # runs in docker compose; compare
-                                             # failures against the pre-merge
-                                             # baseline, not zero
+git ls-files -u                              # nothing left unmerged
+git grep -nE '^(<<<<<<<|>>>>>>>)( |$)'       # no leftover conflict markers
+git push -u origin sync/upstream
+gh pr create --base main --head sync/upstream
 ```
 
-Watch for two things git will *not* flag as conflicts: an import that both
-sides added (duplicated, not conflicted) and two migrations added independently
-on either side (different filenames, so no conflict - but two leaf nodes).
+If a push is ever rejected as non-fast-forward, someone else has pushed.
+Reconcile with their work or start again; never resolve it with `-f`.
 
-```sh
-# 3. Fast-forward main onto the verified merge and push - no -f
-git switch main
-git merge --ff-only merge/upstream-$(date +%Y%m%d)
-
-# This must print nothing and exit 0. If it fails, history was rewritten
-# somewhere - stop and investigate rather than reaching for `git push -f`.
-git merge-base --is-ancestor origin/main main
-
-git push origin main
-```
-
-`main` requires changes to go through a pull request. Pushing directly works if
-you hold the bypass permission, but it skips review - prefer opening a PR from
-the merge branch and letting it merge normally.
-
-If `git push origin main` is ever rejected as non-fast-forward, someone else
-has pushed. Re-run step 1 and merge again; never resolve it with `-f`.
+</details>
 
 7. Build the image
 
